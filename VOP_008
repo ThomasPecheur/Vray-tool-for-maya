@@ -1,8 +1,8 @@
 #### IMPORT ALL MODULE NEEDED
 import maya.cmds as cmds
 import maya.mel as mel
+import webbrowser
 from functools import partial
-
 
 #### CREATE DEF FOR BUTTON  IN UI 
 def AddVOPtoMatte(*args):
@@ -220,6 +220,6 @@ def VOP_win():
 	#Creator Name layout
 	cmds.separator(style='in', height=10)
 	cmds.text(label='Thomas Pecheur VOP 008', fn= "smallBoldLabelFont")
-	
+	webbrowser.open('https://thomaspecheur.wixsite.com/thomaspecheurvfx')
 	cmds.showWindow("VOP_Creator")
 VOP_win()  
