@@ -1,0 +1,157 @@
+#### IMPORT MODULES
+import os
+import maya.cmds as cmds
+import maya.mel as mel
+import webbrowser
+from functools import partial
+import shutil
+
+#### CREATE DEF
+def Analysize(ChoiceType, scrollLayoutb,*args):
+	ChoiceTypeIN = cmds.radioButtonGrp(ChoiceType, query=True, sl=True )
+	file_paths_dict = {}
+	if ChoiceTypeIN == 1:
+		file_nodes_list = cmds.ls(type='file')
+		attrName = '.fileTextureName'
+	elif ChoiceTypeIN == 2:
+		file_nodes_list = cmds.ls(type='VRayMesh')
+		attrName = '.fileName2'
+		
+	for file_node in file_nodes_list:
+		#print file_node
+	    FilePath = cmds.getAttr( file_node + attrName )
+	    folder_path = os.path.dirname(FilePath) 
+	    # If texture folder path does not exist as key, create new key
+	    if not folder_path in file_paths_dict.keys():
+	        # define a new key with first value being the current file node
+	        file_paths_dict[ folder_path ] = [file_node]
+	    	# if texture folder path already exists as a key, add current file node to the list
+	    else:
+	        # append to existing key whose value is a list because we defined that above
+	        file_paths_dict[ folder_path ].append( file_node )
+	  
+	#print file_paths_dict
+	for path in file_paths_dict.keys():
+	    # retrieve the value of a key
+	    file_nodes_to_select = file_paths_dict[path]
+	    NumofNodes =  len(file_nodes_to_select)
+	    # create checkbox for path
+	    cmds.checkBox(label= str(NumofNodes) +' nodes point to '+ path, value=0, onc=partial(SelectNodes, file_nodes_to_select),ofc=partial(UnSelectNodes, file_nodes_to_select), parent=scrollLayoutb)
+
+	
+	print file_paths_dict    
+	return file_paths_dict	    
+
+## DESELECT NODES BASED ON CHECKBOX
+def UnSelectNodes(file_nodes_to_select, *args):
+	print file_nodes_to_select     
+	for eachNode in  file_nodes_to_select:
+		cmds.select(eachNode, deselect=True)
+
+## SELECT NODES BASED ON CHECKBOX
+def SelectNodes(file_nodes_to_select,*args):
+	print file_nodes_to_select     
+	for eachNode in  file_nodes_to_select:
+		cmds.select(eachNode, add=True)
+
+
+## SELECT FOLDER LOCATION SOURCE
+def BrowsingS(MayaSource,*args):
+	folder=cmds.fileDialog2(cap="locate folder",fm=3) 	
+	cmds.textField(MayaSource, edit=True,text=folder[0])
+	print folder[0]
+
+
+## CURRENT WORKSPACE
+MayaSourceDir = cmds.workspace(q=True, rootDirectory=True)
+print MayaSourceDir
+
+
+## COPY FILE | SOURCE TO DEST
+def CopyFile(FolderDest, ChoiceType ,*args):
+	FolderDestIn = cmds.textField(FolderDest, query=True,text=True)
+	#print FolderDestIn
+	ChoiceTypeIN = cmds.radioButtonGrp(ChoiceType, query=True, sl=True)
+	#print ChoiceTypeIN
+	if ChoiceTypeIN == 1:
+		#file_nodes_list = cmds.ls(type='file')
+		attrName = '.fileTextureName'
+	elif ChoiceTypeIN == 2:
+		#file_nodes_list = cmds.ls(type='VRayMesh')
+		attrName = '.fileName2'	
+	NodeSelected =  cmds.ls(selection=True) 	
+	for eachnode in NodeSelected:
+		GetTexturetoCopy = cmds.getAttr( eachnode + attrName )
+		TexturetoCopy = GetTexturetoCopy.split('/')
+		print GetTexturetoCopy
+		x= TexturetoCopy[-1]
+		print FolderDestIn
+		shutil.copy2(GetTexturetoCopy, FolderDestIn)
+		print x + "    Texture has been copied"
+
+## SET PATH
+def SetPath(MayaSource,ChoiceType, *args ):
+	MayaSourceIn = cmds.textField(MayaSource, query=True,text=True)
+	ChoiceTypeIN = cmds.radioButtonGrp(ChoiceType, query=True, sl=True )
+	NodeSelected =  cmds.ls(selection=True) 
+	if ChoiceTypeIN == 1:
+		attrName = '.fileTextureName'
+	elif ChoiceTypeIN == 2:
+		attrName = '.fileName2'	
+	for eachnode in NodeSelected:
+		GetTexturetoCopy = cmds.getAttr( eachnode + attrName )
+		TexturetoCopy = GetTexturetoCopy.split('/')
+		print GetTexturetoCopy
+		x= TexturetoCopy[-1]
+		TexturetoCopy = cmds.setAttr( eachnode + attrName, MayaSourceIn +'/'+ x, type = "string" )
+	print "Path has been set"
+    
+## REFRESH UI
+def RefreshUI(*args):
+    FileManagerWIN()  
+    
+####### WINDOW UI START HERE #######
+####################################
+def FileManagerWIN():
+	if cmds.window("FileManager", exists = True):
+		cmds.deleteUI("FileManager")
+	window = cmds.window("FileManager", title = "FileManager", sizeable = True)
+	
+	cmds.rowColumnLayout(nc=1)
+	TITLE = cmds.text(label='FILE MANAGER', font ="boldLabelFont")
+	cmds.separator(style='in', height=10)
+	cmds.setParent('..')
+	cmds.rowColumnLayout(nc=1)
+	cmds.text(label='FILE TYPE')
+	ChoiceType = cmds.radioButtonGrp(labelArray2=['Texture', 'VRay Proxy Mesh'], numberOfRadioButtons=2, sl=1)
+	
+	## ANALYZISE
+	AnalyzeWind = cmds.rowColumnLayout(nc=1)
+	scrollLayoutb = cmds.scrollLayout(childResizable=True, parent=AnalyzeWind)
+	cmds.setParent('..')	
+	cmds.rowColumnLayout(nc=1)
+	cmds.button(label = 'ANALYZE', w=300, command=partial(Analysize,ChoiceType, scrollLayoutb))
+	cmds.separator(style='in', height=10)
+	
+	## PATH
+	cmds.rowColumnLayout(nc=3)
+	cmds.text(label='Destination Directory:	')
+	MayaSource = cmds.textField(text=str(MayaSourceDir), w=300)
+	cmds.button (label='Browse', command=partial(BrowsingS, MayaSource))
+	cmds.setParent('..')
+	cmds.separator(style='in', height=10)
+	
+	#layout button
+	cmds.rowColumnLayout(nc=3, cs =[25,25])
+	cmds.button (label= 'Copy', w=150, command =partial(CopyFile, MayaSource, ChoiceType))
+	cmds.button(label= 'Set Path', w=150, command =partial(SetPath,MayaSource, ChoiceType))
+	cmds.button(label= 'RefreshUI', w=150, command=partial (RefreshUI))
+	cmds.setParent('..')
+	cmds.separator(style='in', height=10)
+	
+	#layout creator
+	cmds.rowColumnLayout(nc=1)
+	cmds.text (label='Thomas Pecheur File Manager v002', fn= "smallBoldLabelFont")
+	webbrowser.open('https://thomaspecheur.wixsite.com/thomaspecheurvfx')
+	cmds.showWindow("FileManager")
+FileManagerWIN()
