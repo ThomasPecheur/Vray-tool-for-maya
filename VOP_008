@@ -1,0 +1,225 @@
+#### IMPORT ALL MODULE NEEDED
+import maya.cmds as cmds
+import maya.mel as mel
+from functools import partial
+
+
+#### CREATE DEF FOR BUTTON  IN UI 
+def AddVOPtoMatte(*args):
+	VOPItems = cmds.textScrollList('listVOP', query= True, si=True)
+	VopID = cmds.getAttr(VOPItems[0] + ".objectID")
+	MulID = cmds.textScrollList('listMatte',query=True, si=True)
+	red = cmds.getAttr(MulID[0] + ".vray_redid_multimatte")
+	green = cmds.getAttr(MulID[0] + ".vray_greenid_multimatte")
+	blue = cmds.getAttr(MulID[0] + ".vray_blueid_multimatte")	
+	# get the object id and compare to render element ID assigned
+	if red == 0:
+		if green or blue != VopID:
+			cmds.setAttr(MulID[0] + ".vray_redid_multimatte", VopID)		
+	elif green == 0:
+		if blue or red != VopID:
+			cmds.setAttr(MulID[0] + ".vray_greenid_multimatte", VopID)	
+	elif blue == 0:
+		if green or red != VopID:
+			cmds.setAttr(MulID[0] + ".vray_blueid_multimatte", VopID)
+	else:
+		print 'VOP is already assigned to this matte'
+		pass
+	#refres window
+	VOP_win()
+
+
+def MatteCreation( *args):
+	VOPItems = cmds.textScrollList('listVOP', query= True, si=True)
+	
+	result = cmds.promptDialog(
+		title='name multimatte',
+		message='Enter Name:',
+		button=['OK', 'Cancel'],
+		defaultButton='OK',
+		cancelButton='Cancel',
+		dismissString='Cancel')
+	if result == 'OK':
+			passname = cmds.promptDialog(query=True, text=True)
+
+	#Create object ID on Polygones mesh Shape
+	VopID = cmds.getAttr(VOPItems[0] + ".objectID")		
+	NewMulutimate = mel.eval('vrayAddRenderElement MultiMatteElement')
+	
+	Matte = cmds.rename (NewMulutimate,  "m_"+passname)
+	#Change file name suffix for comp, m_ would be used in Nuke to exrtact multimatte
+	cmds.setAttr (Matte + ".vray_name_multimatte",  "m_" + passname, type="string")
+	cmds.setAttr (Matte +".vray_considerforaa_multimatte", 1)
+	cmds.setAttr (Matte +".vray_usematid_multimatte", 0)
+	cmds.setAttr(Matte + ".vray_redid_multimatte",VopID )
+	print "Multimate " + passname + " is created!"
+	#refresh Window
+	VOP_win()
+
+
+def RemoveObjs(*args):
+	#Remove selected objects from VOP selected in UI
+	VOPItems = cmds.textScrollList('listVOP', query= True, si=True)
+	ObjsToAdd = cmds.ls(selection=True)
+	for eachObjs in ObjsToAdd:
+		cmds.sets (eachObjs , edit=1, rm=VOPItems[0] )
+
+def AddObjects(*args):
+	#Add selected objects to VOP selected in UI
+	VOPItems = cmds.textScrollList('listVOP', query= True, si=True)
+	ObjsToAdd = cmds.ls(selection=True)
+	for eachObjs in ObjsToAdd:
+		cmds.sets (eachObjs , edit=1, forceElement=VOPItems[0] )
+
+def CreateVOP(VopID,VOPName, *args):
+	#Create a Vray Oject Properties and set the setting
+	VOPIDIN = cmds.intField (VopID,query=True, v=True)
+	VOPNameIn = cmds.textFieldGrp(VOPName, query=True, tx=True)
+	ObjsToAdd = cmds.ls(selection=True)
+	VOPtorename= mel.eval('createNode VRayObjectProperties') 
+	#rename the VOP to name in UI
+	renameVOP= cmds.rename (VOPtorename, 'VOP_'+  str(VOPIDIN)+'_'+VOPNameIn)
+	cmds.setAttr ("VOP_"+ str(VOPIDIN)+'_'+VOPNameIn + ".objectIDEnabled", 1)
+	cmds.setAttr ("VOP_"+ str(VOPIDIN) +'_'+VOPNameIn+".objectID", int(VOPIDIN))  	
+	for eachObjs in ObjsToAdd:
+		cmds.sets (eachObjs , edit=1, forceElement=renameVOP )
+	#Refresh Window
+	VOP_win()
+
+
+def SelectItemsVOP():
+	VOPItems = cmds.textScrollList('listVOP',q=True, si=True)
+	cmds.select(clear=True)
+	for x in VOPItems:
+		cmds.select(x, ne=True,add=True)
+		
+def SelectItemsMatte():
+	MatItems = cmds.textScrollList('listMatte',q=True, si=True)
+	if MatItems == None:
+		print 'There is no Matte'
+	else:
+		cmds.select(clear=True)
+		for x in MatItems:
+			cmds.select(x, ne=True,add=True)
+		
+#### CREATE DEF FOR UI 
+	
+def GetVrayVop():
+	#Get all Vray Object Properties to list them in UI
+	vopInScene = cmds.ls(exactType = 'VRayObjectProperties')
+	VOPItems = cmds.textScrollList('listVOP', append=vopInScene, sc=SelectItemsVOP)
+	return VOPItems
+
+
+def GetMultimatteID():	
+	#Find multimatte render elements (AOV) for each VOP, to do this we will compare the id number of VOP to all the matte
+	VopList =[]	
+	GetVOP = cmds.ls ('VOP_*')
+	for eachVOP in GetVOP:
+		VopID = cmds.getAttr(eachVOP + ".objectID")
+		VopList.append(VopID)
+	else:
+	    pass
+	MatteList =[]
+	MMs=[]
+	bufferList = cmds.ls(type='VRayRenderElement')
+	for eachbuffer in bufferList:
+		x = cmds.getAttr(eachbuffer +".vrayClassType")
+		if x == 'MultiMatteElement':		
+			MMs.append(eachbuffer)
+
+	for ID in VopList:
+		listItem = "No MultiMatte"
+		for MM in MMs:
+			if ID == cmds.getAttr("%s.vray_redid_multimatte"%MM):
+				if listItem == "No MultiMatte":
+					listItem = MM
+				else:
+					listItem = "%s, %s"%(listItem, MM)
+			if ID == cmds.getAttr("%s.vray_greenid_multimatte"%MM):
+				if listItem == "No MultiMatte":
+					listItem = MM
+				else:
+					listItem = "%s, %s"%(listItem, MM)
+			if ID == cmds.getAttr("%s.vray_blueid_multimatte"%MM):
+				if listItem == "No MultiMatte":
+					listItem = MM
+				else:
+					listItem = "%s, %s"%(listItem, MM)
+		MatteList.append(listItem)
+	MulID= cmds.textScrollList('listMatte',append=MatteList,  sc=SelectItemsMatte)
+	
+	
+   
+
+def VOPIDUI():	
+	#Get the id of the VOP to list it in the UI
+	VopList =[]	
+	GetVOP = cmds.ls ('VOP_*')
+	for eachVOP in GetVOP:
+		VopID = cmds.getAttr(eachVOP + ".objectID")
+		VopList.append(VopID)
+	VOPID= cmds.textScrollList(append=VopList,sc=SelectItemsVOP)
+
+
+
+
+#### CREATE UI
+
+#check to see if window exists
+def VOP_win():
+	if cmds.window("VOP_Creator", exists = True):
+		cmds.deleteUI("VOP_Creator")
+	
+	#Create Window
+	window = cmds.window("VOP_Creator", title = "VOP_Creator", sizeable = True)
+	cmds.rowColumnLayout(nc=1)
+	ColorMatte = cmds.text(label='Create VOP',  font ="boldLabelFont")
+	cmds.separator(style='in', height=10)
+	cmds.setParent('..')
+	
+	#Layout for Vop creation
+	cmds.rowColumnLayout( nc=5 )
+	cmds.text(label=' 	ID #')
+	VopList =[]	
+	#Find is there is already a VOP created
+	IncNum = cmds.ls ('VOP_*')
+	if not IncNum:
+		NewID=1
+	else:
+		for eachVOP in IncNum:
+			Num = cmds.getAttr(eachVOP + ".objectID")
+			NewID = Num + 1	
+	
+	VOPID = cmds.intField(w=50, v=NewID)
+	VOPName= cmds.textFieldGrp(tx='Name_Your_VOP', w=150)
+	cmds.text(label='')
+	createVopbtn = cmds.button(label='create vop', w=100, command=partial(CreateVOP, VOPID, VOPName))
+	cmds.setParent('..')
+	cmds.separator(style='in', height=10)
+	
+	#Layout for Scrollist and their button
+	ScrollListColunm = cmds.rowColumnLayout(nc=3)
+	cmds.text(label='VOP:')
+	cmds.text(label='IDs:')
+	cmds.text(label='Multimattes:')
+	
+	VopC = GetVrayVop()
+	VOPNUM = VOPIDUI()
+	MultiC = GetMultimatteID()
+	
+	cmds.button(label='Add Object for selected VOP', bgc=[0, 0.5, 0], command=AddObjects)
+	cmds.button(label='Remove Object from selected VOP',bgc=[0.5, 0, 0], command=RemoveObjs)
+	cmds.button(label='Create Matte for selected VOP', command=MatteCreation)
+	
+	cmds.text(label='')
+	cmds.text(label='')
+	cmds.button(label='Add VOP for selected Multimatte', command=AddVOPtoMatte)
+	cmds.setParent('..')
+	
+	#Creator Name layout
+	cmds.separator(style='in', height=10)
+	cmds.text(label='Thomas Pecheur VOP 008', fn= "smallBoldLabelFont")
+	
+	cmds.showWindow("VOP_Creator")
+VOP_win()  
