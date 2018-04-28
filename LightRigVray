@@ -1,6 +1,7 @@
 #### IMPORT MODULES NEEDED
 import maya.cmds as cmds
 import maya.mel as mel
+import webbrowser
 from functools import partial
 
 ### CREATE DEF
@@ -182,7 +183,9 @@ def LightSelectWin():
 	#layout createor
     cmds.text (label=" ")
     cmds.text (label="Thomas Pecheur    LightRig    v002", fn= "smallBoldLabelFont")
+    webbrowser.open('https://thomaspecheur.wixsite.com/thomaspecheurvfx')
     cmds.text (label=" ")
+    
 
     #show window
     cmds.showWindow (WindowName)
