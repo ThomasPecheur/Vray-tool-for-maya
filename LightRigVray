@@ -1,0 +1,189 @@
+#### IMPORT MODULES NEEDED
+import maya.cmds as cmds
+import maya.mel as mel
+from functools import partial
+
+### CREATE DEF
+def LightGather():
+	LightinScene = cmds.ls(lights=True)
+	SelectVrayDome = cmds.ls(type='VRayLightDomeShape')
+	SelectVrayRect = cmds.ls(type='VRayLightRectShape')
+	SelectVraySph =  cmds.ls(type='VRayLightSphereShape')
+	SelectVrayIESS = cmds.ls(type='VRayLightIESShape')
+	#Extend light selection with Vray lights
+	LightinScene.extend(SelectVrayDome) 
+	LightinScene.extend(SelectVrayRect)
+	LightinScene.extend(SelectVraySph)
+	LightinScene.extend(SelectVrayIESS)
+	 
+	NewLsList = []
+	
+	for eachlgt in LightinScene:
+		print eachlgt[:-5]              
+		NewLsList.append(eachlgt[:-5])
+	LightinScene = cmds.textScrollList('LightSelection', append=NewLsList, sc=SelectLights,ams=True )
+
+def SelectLights():
+	LightSelected = cmds.textScrollList('LightSelection',q=True, si=True)
+	cmds.select(clear=True)
+	for x in LightSelected:
+		LightToRig = cmds.select(x, ne=True,add=True)
+	return LightToRig
+
+def CreateLs(diff, raw, spec, normal,MultiLS,*args):
+	LightSelected = cmds.textScrollList('LightSelection',q=True, si=True)
+	MultiLSIn = cmds.checkBox(MultiLS, query=True, value=True )
+	diffIn = cmds.checkBox(diff, query=True, value=True )
+	specIn = cmds.checkBox(spec,query=True, value=True )
+	rawIn = cmds.checkBox(raw,query=True, value=True )
+	normalIn = cmds.checkBox(normal, query=True, value=True)  
+
+	if MultiLSIn == True:
+
+		if normalIn == True:
+			vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+			cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Normal', type='string')
+			cmds.setAttr (vray_ele+'.vray_type_lightselect', 0)
+			RenameNorm = cmds.rename(vray_ele,'LS_'+LightSelected[0]+'_normal')
+			cmds.setAttr (RenameNorm+".vray_name_lightselect", LightSelected[0]+ '_normal', type='string')
+			counter = 1
+			for allObjs in LightSelected:
+				cmds.connectAttr(allObjs +".instObjGroups[0]", RenameNorm + '.dagSetMembers['+ str(counter) + ']')
+				counter += 1
+		else:
+			pass
+			
+		if rawIn == True:
+			vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+			cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Raw', type='string')
+			cmds.setAttr (vray_ele+'.vray_type_lightselect', 1)
+			RenameRaw= cmds.rename(vray_ele,'Re_'+LightSelected[0]+'_raw')
+			cmds.setAttr (RenameRaw+".vray_name_lightselect", LightSelected[0]+ '_raw', type='string')
+			counter = 1
+			for allObjs in LightSelected:
+				cmds.connectAttr(allObjs +".instObjGroups[0]", RenameRaw + '.dagSetMembers['+ str(counter) + ']')
+				counter += 1
+			
+		else:
+			pass
+			
+		if diffIn == True:
+			vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+			cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Diffuse', type='string')
+			cmds.setAttr (vray_ele+'.vray_type_lightselect', 2)
+			RenameDiff = cmds.rename(vray_ele,'LS_'+LightSelected[0]+'_diffuse')
+			cmds.setAttr (RenameDiff+".vray_name_lightselect", LightSelected[0]+ '_diff', type='string')
+			counter = 1
+			for allObjs in LightSelected:
+				cmds.connectAttr(allObjs +".instObjGroups[0]", RenameDiff + '.dagSetMembers['+ str(counter) + ']')
+				counter += 1
+		else:	
+			pass
+			
+		if specIn == True:
+			vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+			cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Specular', type='string')
+			cmds.setAttr (vray_ele+'.vray_type_lightselect', 3)
+			RenameSpec = cmds.rename(vray_ele,'LS_'+LightSelected[0]+'_spec')
+			cmds.setAttr (RenameSpec+".vray_name_lightselect", LightSelected[0]+ '_specu', type='string')
+			counter = 1
+			for allObjs in LightSelected:
+				cmds.connectAttr(allObjs +".instObjGroups[0]", RenameSpec + '.dagSetMembers['+ str(counter) + ']')
+				counter += 1
+		else:
+			pass
+
+	if MultiLSIn == False:
+		for eachLight in LightSelected:
+			 
+
+			if normalIn == True:
+				vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+				cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Normal', type='string')
+				cmds.setAttr (vray_ele+'.vray_type_lightselect', 0)
+				RenameNorm = cmds.rename(vray_ele,'LS_'+eachLight+'_normal')
+				cmds.setAttr (RenameNorm+".vray_name_lightselect", eachLight+ '_normal', type='string')
+				cmds.connectAttr(eachLight +".instObjGroups[0]", RenameNorm + '.dagSetMembers[0]')
+			
+			else:
+				pass
+				
+			if rawIn == True:
+				vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+				cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Raw', type='string')
+				cmds.setAttr (vray_ele+'.vray_type_lightselect', 1)
+				RenameRaw= cmds.rename(vray_ele,'LS_'+eachLight+'_raw')
+				cmds.setAttr (RenameRaw+".vray_name_lightselect", eachLight+ '_raw', type='string')
+				cmds.connectAttr(eachLight +".instObjGroups[0]", RenameRaw + '.dagSetMembers[0]')
+
+			else:
+				pass
+				
+			if diffIn == True:
+				vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+				cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Diffuse', type='string')
+				cmds.setAttr (vray_ele+'.vray_type_lightselect', 2)
+				RenameDiff = cmds.rename(vray_ele,'LS_'+eachLight+'_diff')
+				cmds.setAttr (RenameDiff+".vray_name_lightselect", eachLight+ '_diff', type='string')
+				cmds.connectAttr(eachLight +".instObjGroups[0]", RenameDiff + '.dagSetMembers[0]')
+
+			else:	
+				pass
+				
+			if specIn == True:
+				vray_ele = mel.eval('vrayAddRenderElement LightSelectElement')
+				cmds.setAttr(vray_ele+'.vray_name_lightselect', 'Specular', type='string')
+				cmds.setAttr (vray_ele+'.vray_type_lightselect', 3)
+				RenameSpec = cmds.rename(vray_ele,'LS_'+eachLight+'_spec')
+				cmds.setAttr (RenameSpec+".vray_name_lightselect", eachLight+ '_spec', type='string')
+				cmds.connectAttr(eachLight +".instObjGroups[0]", RenameSpec + '.dagSetMembers[0]')
+
+			else:
+				pass
+
+
+#### CREATE DEF UI
+def LightSelectWin():
+    WindowName='LightRig'
+    #check to see if window exists
+    if cmds.window(WindowName, exists = True):
+		cmds.deleteUI(WindowName)
+
+    #create our window
+    window = cmds.window(WindowName, title = WindowName, w = 300, h = 300, mnb = False, mxb = False, sizeable = True)
+    cmds.rowColumnLayout(nc=1)
+    
+	#Create text to explain tool
+    cmds.text(label='')
+    cmds.text(label='Create light linking and render element')
+    
+	#layout for light selection into UI
+    LightGather()
+    cmds.setParent('..')
+        
+    #layout for selection of AOV to generate from lights
+    cmds.rowColumnLayout(nc=4)
+    diff = cmds.checkBox(label='diffuse' )
+    spec = cmds.checkBox(label='spec' )
+    raw = cmds.checkBox(label='raw' )
+    normal = cmds.checkBox(label='normal' )
+    cmds.setParent('..')
+    
+    cmds.rowColumnLayout(nc=1)
+    MultiLS = cmds.checkBox(label='Same Render Element for multi light selection' )
+    cmds.setParent('..')
+    
+    cmds.rowColumnLayout(nc=1)
+    cmds.separator (h=10, style="in")
+    
+	#layout for button to generate AOV
+    cmds.button (label="Select light(s) to create pass", width=300, command=partial(CreateLs,diff, raw, spec, normal, MultiLS ))
+    
+	#layout createor
+    cmds.text (label=" ")
+    cmds.text (label="Thomas Pecheur    LightRig    v002", fn= "smallBoldLabelFont")
+    cmds.text (label=" ")
+
+    #show window
+    cmds.showWindow (WindowName)
+LightSelectWin()    
